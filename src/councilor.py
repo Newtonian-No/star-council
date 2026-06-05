@@ -8,7 +8,6 @@
 import os
 import subprocess
 import yaml
-import tempfile
 from pathlib import Path
 from typing import Optional
 
@@ -69,21 +68,14 @@ class CouncilorSpawner:
         toolsets = cfg.get("toolsets", ["file"])
         timeout = cfg.get("timeout", 300)
 
-        # 把 prompt 写入临时文件（避免 shell 转义问题）
-        prompt_file = tempfile.NamedTemporaryFile(
-            mode="w", suffix=".txt", delete=False, dir="/tmp", encoding="utf-8"
-        )
-        prompt_file.write(prompt)
-        prompt_file.close()
-
-        # 构建命令
+        # 构建命令 — prompt 直接作为 -z 参数（subprocess list 模式，不需要 shell 转义）
         if provider == "openrouter":
-            return self._spawn_openrouter(cfg, prompt_file.name, toolsets, timeout, workdir)
+            return self._spawn_openrouter(cfg, prompt, toolsets, timeout, workdir)
         else:
-            return self._spawn_direct(provider, model, prompt_file.name, toolsets, timeout, workdir)
+            return self._spawn_direct(provider, model, prompt, toolsets, timeout, workdir)
 
-    def _spawn_direct(self, provider, model, prompt_file, toolsets, timeout, workdir):
-        """DeepSeek 直连 sprawn"""
+    def _spawn_direct(self, provider, model, prompt, toolsets, timeout, workdir):
+        """DeepSeek 直连"""
         toolsets_str = ",".join(toolsets)
         cmd = [
             "hermes", "chat",
@@ -91,45 +83,54 @@ class CouncilorSpawner:
             "--model", model,
             "--toolsets", toolsets_str,
             "-Q", "--yolo",
-            "-q", f"$(cat {prompt_file})",
+            "-q", prompt,
         ]
 
         result = subprocess.run(
-            " ".join(cmd),
-            shell=True,
+            cmd,
             capture_output=True,
             text=True,
             timeout=timeout,
             cwd=workdir or str(self.config.project_root),
         )
-        os.unlink(prompt_file)
         return result.stdout if result.returncode == 0 else f"[ERROR] {result.stderr}"
 
-    def _spawn_openrouter(self, cfg, prompt_file, toolsets, timeout, workdir):
-        """OpenRouter spawn — 需要 VPN 代理 + API key 注入"""
+    def _spawn_openrouter(self, cfg, prompt, toolsets, timeout, workdir):
+        """OpenRouter spawn — VPN 代理 + A 账户 API key"""
         toolsets_str = ",".join(toolsets)
         proxy = cfg.get("proxy", "http://127.0.0.1:7890")
 
-        # 用 bash -c 注入环境变量
-        wrapper_cmd = (
-            f"export HTTPS_PROXY={proxy} && "
-            f"export HTTP_PROXY={proxy} && "
-            f"hermes chat "
-            f"--provider openrouter "
-            f"--model {cfg['model']} "
-            f"--toolsets {toolsets_str} "
-            f"-Q --yolo "
-            f'-q "$(cat {prompt_file})"'
-        )
+        cmd = [
+            "hermes", "chat",
+            "--provider", "openrouter",
+            "--model", cfg["model"],
+            "--toolsets", toolsets_str,
+            "-Q", "--yolo",
+            "-q", prompt,
+        ]
+        env = os.environ.copy()
+        env["HTTPS_PROXY"] = proxy
+        env["HTTP_PROXY"] = proxy
+
+        # 从 .env 加载 OpenRouter A 账户 key
+        env_file = Path.home() / ".hermes" / ".env"
+        if env_file.exists():
+            with open(env_file) as f:
+                for line in f:
+                    line = line.strip()
+                    if line.startswith("OPENROUTER_A_API_KEY="):
+                        key = line.split("=", 1)[1].strip().strip('"').strip("'")
+                        env["OPENROUTER_API_KEY"] = key
+                        break
 
         result = subprocess.run(
-            ["bash", "-c", wrapper_cmd],
+            cmd,
             capture_output=True,
             text=True,
             timeout=timeout,
             cwd=workdir or str(self.config.project_root),
+            env=env,
         )
-        os.unlink(prompt_file)
         return result.stdout if result.returncode == 0 else f"[ERROR] {result.stderr}"
 
 
