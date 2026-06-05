@@ -1,0 +1,94 @@
+# 星海理事会配置文件
+version: "1.0"
+
+# === 理事配置 ===
+councilors:
+  architect:
+    name: "架构理事"
+    provider: openrouter
+    model: anthropic/claude-opus-4
+    # 注意：OpenRouter-A 虚拟币账户，需要 mihomo VPN 代理
+    # spawn 时需注入 OPENROUTER_A_API_KEY + HTTPS_PROXY=http://127.0.0.1:7890
+    proxy: "http://127.0.0.1:7890"
+    toolsets: [web, file, terminal]
+    timeout: 600
+
+  experiment:
+    name: "实验理事"
+    provider: deepseek
+    model: deepseek-v4-pro
+    toolsets: [terminal, file, web, vision]
+    timeout: 300
+
+  literature:
+    name: "文献理事"
+    provider: deepseek
+    model: deepseek-v4-pro
+    toolsets: [web, file, search]
+    timeout: 300
+
+  writer:
+    name: "文字理事"
+    provider: deepseek
+    model: deepseek-v4-pro
+    toolsets: [file, web]
+    timeout: 300
+
+  devil:
+    name: "魔鬼代言人"
+    provider: deepseek
+    model: deepseek-v4-pro
+    toolsets: [web, file]
+    timeout: 300
+
+# === 会议配置 ===
+meeting:
+  max_rounds: 10
+  convergence_threshold: 0.8
+  turn_timeout: 300
+
+# === 发言权重（按阶段） ===
+weights:
+  ideation:        # 探索阶段：文献 + 架构主导
+    architect: 0.3
+    experiment: 0.2
+    literature: 0.3
+    writer: 0.1
+    devil: 0.1
+  design:          # 设计阶段：架构 + 实验主导
+    architect: 0.4
+    experiment: 0.3
+    literature: 0.1
+    writer: 0.1
+    devil: 0.1
+  experiment:      # 实验阶段：实验主导
+    architect: 0.2
+    experiment: 0.4
+    literature: 0.1
+    writer: 0.1
+    devil: 0.2
+  writing:         # 写作阶段：文字主导
+    architect: 0.1
+    experiment: 0.2
+    literature: 0.2
+    writer: 0.3
+    devil: 0.2
+  revision:        # 修改/rebuttal：全员均衡
+    architect: 0.2
+    experiment: 0.2
+    literature: 0.2
+    writer: 0.2
+    devil: 0.2
+
+# === 路径配置 ===
+paths:
+  sessions_dir: "sessions"
+  workspace_dir: "workspace"
+  prompts_dir: "prompts"
+  templates_dir: "templates"
+
+# === Git 配置 ===
+git:
+  auto_commit: true
+  remote_name: origin
+  branch: main
