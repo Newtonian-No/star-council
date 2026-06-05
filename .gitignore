@@ -1,0 +1,31 @@
+# Secrets
+.env
+*.key
+*.pem
+config.local.yaml
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+*.egg-info/
+dist/
+
+# Session data (private)
+sessions/*/meetings/*/private/
+sessions/*/workspace/credentials/
+
+# Editor
+.vscode/
+.idea/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Temp
+*.tmp
+*.lock
+*.log
+.cache/
