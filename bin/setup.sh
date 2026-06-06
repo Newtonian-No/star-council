@@ -33,7 +33,7 @@ if git remote get-url origin &>/dev/null; then
     echo "  Git remote origin 已配置: $(git remote get-url origin)"
 else
     echo "  请手动配置 Git remote:"
-    echo "    git remote add origin ~/git-repos/star-council.git"
+    echo "    git remote add origin https://github.com/Newtonian-No/star-council.git"
 fi
 
 echo ""
